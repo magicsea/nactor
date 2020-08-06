@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package pb;
+
+service GameService {
+    //test push
+    rpc Hello(HelloRequest) returns (HelloResponse) {}
+    //test push all
+    rpc HelloWorld(HelloRequest) returns (HelloResponse) {}
+    //test push one by id
+    rpc TellYou(TellRequest) returns (TellRsp) {}
+
+}
+
+message HelloRequest {
+    string request = 1;
+}
+
+message HelloResponse {
+    string response = 1;
+}
+
+message TellRequest {
+    string request = 1;
+    int64 targetId = 2;
+}
+
+message TellRsp {
+    string request = 1;
+    int64 targetId = 2;
+}
