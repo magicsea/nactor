@@ -1,6 +1,6 @@
 # WIP
 无证施工中...
-![image](https://github.com/magicsea/nactor/blob/master/res/workgolang.jpg)
+![image](res/workgolang.jpg)
 # nactor
 基于nats中间件开发的actor框架。
 
