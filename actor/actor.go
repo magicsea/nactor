@@ -11,21 +11,38 @@ import (
 )
 //size of recv chan
 const MsgRecvSize = 256
-
+//actor 对外接口
+type IActor interface {
+	Run() error
+	Close()
+	//主动读取消息，一般用作测试
+	Read() Context
+}
 //Actor
 type Actor struct {
 	name string
 	conn *nats.Conn
+	//消息传递通道
 	ch chan Context
+	//关闭开关
 	ctxCancel context.Context
 	cancel context.CancelFunc
+	//订阅的主题
 	subjects sync.Map
+	//事件处理器
 	proc ActorProc
+	//观察者列表
+	watcherMap map[string]string
 }
 
 //NewActor
 func NewActor(name string,conn *nats.Conn,proc ActorProc) *Actor {
-	ac := Actor{name:name,conn:conn,proc:proc}
+	ac := Actor{
+		name:name,
+		conn:conn,
+		proc:proc,
+		watcherMap:make(map[string]string),
+	}
 	return &ac
 }
 
@@ -51,6 +68,13 @@ func (ac *Actor) Tell(message Message) error {
 	return ac.conn.Publish(ac.subjectName(),data)
 }
 
+
+//本地推送一个消息给自己
+func (ac *Actor) pushMessage(msg interface{})  {
+	ctx := newContext(ac,nil,msg)
+	ac.ch<-ctx
+}
+
 /**
  *订阅一个主题,goroutine safe
  *一个actor默认会订阅一个自己名字的主题。
@@ -65,7 +89,7 @@ func (ac *Actor) Subscribe(subject string) error {
 		if err!=nil {
 			nlog.Error(err)
 		}
-		ctx := newContext(m,msg)
+		ctx := newContext(ac,m,msg)
 		ac.ch<-ctx
 	})
 
@@ -99,20 +123,18 @@ func (ac *Actor) Unsubscribe(subject string) error {
  *主要职责是读消息，控制生命期，释放资源
 **/
 func (ac *Actor) Run() error {
-	//ec, err := nats.NewEncodedConn(ac.conn, nats.JSON_ENCODER)
-	//if err != nil {
-	//    return err
-	//}
-	//defer ec.Close()
+	ac.pushMessage(&Running{})
 	ctx := ac.ctxCancel
 	for {
 		select {
 		case <-ctx.Done():
 			goto BREAK
 		case c := <-ac.ch:
-			nlog.Debug(fmt.Sprintf("[%s] do a message: %v",ac.name, c.Message()))
-			if ac.proc!=nil {
-				ac.proc.Receive(c)
+			nlog.Debug(fmt.Sprintf("[%s] process a message: %+v",ac.name, c.Message()))
+			if !ac.onSystemMsg(c) {
+				if ac.proc!=nil {
+					ac.proc.Receive(c)
+				}
 			}
 		}
 	}
@@ -146,11 +168,38 @@ func  (ac *Actor) Close()  {
 //actor结束，释放资源
 func (ac *Actor) onDestroy()  {
 	nlog.Debug("onDestroy:",ac.name)
+
+	//unsub all
 	ac.subjects.Range(func(key, v interface{}) bool {
 		v.(*nats.Subscription).Unsubscribe()
 		return true
 	})
+
+	//notify proc
 	if ac.proc!=nil {
 		ac.proc.OnDestroy()
 	}
+
+	//notify to all watcher
+	for w, _ := range ac.watcherMap {
+		pr := NewProxy(w,ac.conn)
+		pr.Tell(&WatchTerminated{Who:ac.name})
+	}
+}
+
+//系统消息
+func (ac *Actor) onSystemMsg(ctx Context) bool  {
+	m := ctx.Message()
+	switch msg:=m.(type) {
+	case *Kill:
+		nlog.Info("recv kill:",ac.name,"=>",msg.Reason)
+		ac.Close()
+		return true
+	case *Watch:
+		ac.watcherMap[msg.Watcher]=msg.Watcher
+	case *Unwatch:
+		delete(ac.watcherMap,msg.Watcher)
+	}
+
+	return false
 }

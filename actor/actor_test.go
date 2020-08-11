@@ -6,30 +6,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestEncoder(t *testing.T)  {
-	nc, _ := nats.Connect(nats.DefaultURL)
-	c, _ := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
+	Convey("TestEncoder", t,func() {
+		nc, _ := nats.Connect(nats.DefaultURL)
+		c, _ := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
 
-	defer c.Close()
+		defer c.Close()
 
-	type person struct {
-		Name     string
-		Address  string
-		Age      int
-	}
-	me := &person{Name: "derek", Age: 22, Address: "140 New Montgomery Street, San Francisco, CA"}
+		type person struct {
+			Name     string
+			Address  string
+			Age      int
+		}
+		me := &person{Name: "derek", Age: 22, Address: "140 New Montgomery Street, San Francisco, CA"}
 
-	// Simple Async Subscriber
-	c.Subscribe("foo", func(s *person) {
-		t.Logf("Received a message: %v\n", s)
+		// Simple Async Subscriber
+		c.Subscribe("foo", func(s *person) {
+			t.Logf("Received a message: %v\n", s)
+		})
+
+		// Simple Publisher
+		c.Publish("foo", me)
+
+		time.Sleep(time.Second)
 	})
 
-	// Simple Publisher
-	c.Publish("foo", me)
-
-	time.Sleep(time.Second)
 }
 
 
@@ -46,7 +50,8 @@ func TestActor(t *testing.T)  {
 	ac.Subscribe("test2")
 	go ac.Run()
 
-	NewProxy("test2",nc).Tell("hello2")
+	pr := NewProxy("test2",nc)
+	pr.Tell("hello2")
 	time.Sleep(time.Second)
 }
 
@@ -58,13 +63,13 @@ func (p *actorproc) OnStart() {
 	fmt.Println("##actorproc OnStart")
 }
 func (p *actorproc) Receive(ctx Context) {
-	rmsg := ctx.GetRawMsg()
 	msg := ctx.Message()
 	fmt.Println("##actorproc Receive:",msg)
-	fmt.Println("##actorproc Receive raw:",string(rmsg.Data))
 	switch m:=msg.(type) {
 	case string:
 		ctx.RespondMessage(m+" world")
+	case *WatchTerminated:
+		fmt.Println("recv Terminated:",m)
 	}
 }
 func (p *actorproc) OnDestroy() {
@@ -164,4 +169,73 @@ func TestProxyRequest(t *testing.T) {
 	rsp := <-ch
 	assert.Nil(t,rsp.Err)
 	t.Log("async response:",rsp.Msg)
+}
+
+func TestKillActor(t *testing.T)  {
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proc := actorproc{}
+	ac := NewActor("test",nc,&proc)
+	ac.Start()
+	defer ac.Close()
+
+	go ac.Run()
+
+	ac.Tell(&Kill{Reason:"you are dead",Who:ac.name})
+
+	time.Sleep(time.Second)
+}
+
+func TestWatch(t *testing.T)  {
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//new ac1
+	proc := actorproc{}
+	ac := NewActor("test",nc,&proc)
+	ac.Start()
+	defer ac.Close()
+	go ac.Run()
+
+	//new ac2
+	proc2 := actorproc{}
+	ac2 := NewActor("test2",nc,&proc2)
+	ac2.Start()
+	defer ac2.Close()
+	//go ac.Run()
+	//watch
+	ac2.Tell("hi")
+	hi := ac2.Read()
+	assert.Equal(t,hi.Message().(string),"hi")
+	hi.Watch(ac.name)
+
+
+
+	//new ac3
+	proc3 := actorproc{}
+	ac3:= NewActor("test3",nc,&proc3)
+	ac3.Start()
+	defer ac3.Close()
+	//go ac.Run()
+	//watch
+	ac3.Tell("hi")
+	hi3 := ac3.Read()
+	assert.Equal(t,hi3.Message().(string),"hi")
+	hi3.Watch(ac.name)
+	time.Sleep(time.Second)
+	hi3.Unwatch(ac.name)
+
+	time.Sleep(time.Second)
+	//kill
+	ac.Tell(&Kill{Reason:"you are dead",Who:ac.name})
+	//recv term
+	term := ac2.Read()
+	assert.Equal(t,term.Message().(*WatchTerminated).Who,"test")
+
+	//ac3 should not recv WatchTerminated
+	assert.Equal(t,len(ac3.ch),0)
 }

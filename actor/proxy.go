@@ -31,6 +31,12 @@ func (p *Proxy) Tell(msg Message) error {
 	return p.conn.Publish(p.name,data)
 }
 
+//直接发送消息
+func (p *Proxy) SendRaw(raw []byte) error {
+	return p.conn.Publish(p.name,raw)
+}
+
+
 //同步请求应答
 func (p *Proxy) Request(msg Message,timeout time.Duration) (Message,error) {
 	data,err := encode.Encode(msg)

@@ -69,7 +69,7 @@ func Encode(arg interface{}) ([]byte, error) {
 			err = enc.WritePBObject(pbm)
 		} else {
 			enc.WriteInt8(Gob)
-			err = enc.WriteGobObject(pbm)
+			err = enc.WriteGobObject(arg)
 		}
 	}
 	return enc.Bytes(),err
