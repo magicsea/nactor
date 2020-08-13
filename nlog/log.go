@@ -1,11 +1,13 @@
 package nlog
 
-import "log"
 
 type Logger interface {
 	Debug(v ...interface{})
 	Info(v ...interface{})
 	Error(v ...interface{})
+	Debugf(info string,v ...interface{})
+	Infof(info string,v ...interface{})
+	Errorf(info string,v ...interface{})
 }
 
 var logger Logger = &defaultLogger{}
@@ -24,18 +26,12 @@ func Info(v ...interface{}) {
 func Error(v ...interface{}) {
 	logger.Error(v...)
 }
-
-
-type defaultLogger struct {
+func Debugf(info string,v ...interface{}) {
+	logger.Debugf(info,v...)
 }
-
-func (l *defaultLogger) Debug(v ...interface{}) {
-	log.Println(v...)
+func Infof(info string,v ...interface{}) {
+	logger.Infof(info,v...)
 }
-func (l *defaultLogger) Info(v ...interface{}) {
-	log.Println(v...)
-}
-func (l *defaultLogger) Error(v ...interface{}) {
-	log.Println(v...)
-	log.Fatal(v...)
+func Errorf(info string,v ...interface{}) {
+	logger.Errorf(info,v...)
 }

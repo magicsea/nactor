@@ -1,0 +1,34 @@
+[app]
+version = "1.0.0"
+recover = false
+
+[mq]
+addr = "nats://127.0.0.1:4222"
+
+##日志
+[log]
+level = "info"
+path = "log/test.log"
+flag = 18
+
+[redis]
+addr = "127.0.0.1:6379"
+pwd = ""
+
+[db]
+addr = "127.0.0.1:6379"
+pwd = ""
+
+##启动的服务
+[[services]]
+name = "exam1"
+type = "exam"
+
+#[[services]]
+#name = "gate1"
+#type = "GateWay"
+#MaxConnNum = 10000
+#WsAddr = ":7201"
+#WsAddrOut = "127.0.0.1:7201"
+#TcpAddr = ":7200"
+#TcpAddrOut = "127.0.0.1:7200"

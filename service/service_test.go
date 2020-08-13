@@ -13,7 +13,11 @@ import (
 type exampleService struct {
 	BaseService
 }
-func (s *exampleService) OnStart() {
+func (s *exampleService) OnInitService() {
+	fmt.Println("OnInit")
+	s.RegisterAllRecvMethod(s)
+}
+func (s *exampleService) OnStartService() {
 	fmt.Println("OnStart")
 }
 func (s *exampleService) OnDestroy() {
@@ -38,14 +42,15 @@ func TestRegFunc(t *testing.T)  {
 	encode.RegisterName((*St)(nil))
 
 	nc, _ := nats.Connect(nats.DefaultURL)
-	sv := &exampleService{BaseService:NewBaseService()}
+	sv := &exampleService{}
 	sv.Init("exm1")
-	sv.RegisterAllRecvMethod(sv)
+
 	StartService(sv,nc)
 	defer sv.Stop()
 
-	go sv.RunActor()
-	//sv.actor.Read()//actor.Running
+	go sv.actor.Run()
+
+	//sv.actor.Read()//actor.Started
 
 	time.Sleep(time.Second)
 	s := "hello"

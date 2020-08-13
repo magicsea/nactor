@@ -8,11 +8,11 @@ func init() {
 	encode.RegisterName((*Unwatch)(nil))
 	encode.RegisterName((*WatchTerminated)(nil))
 	encode.RegisterName((*HeartBeat)(nil))
-	encode.RegisterName((*Running)(nil))
+	encode.RegisterName((*Started)(nil))
 }
 
 //开始运行
-type Running struct {
+type Started struct {
 }
 
 //杀掉actor

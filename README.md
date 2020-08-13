@@ -18,7 +18,7 @@
 - [x] service: 主体
 - [x] service: rpc封装
 - [x] service: 服务发现
-- [ ] app:进程启动，服务管理，配置管理
+- [x] app:进程启动，服务管理，配置管理
 - [ ] fuction:gateway
 - [ ] fuction:robot
 - [ ] fuction:room direct,route

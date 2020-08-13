@@ -53,9 +53,6 @@ func (ac *Actor) Start() error {
 	ac.ch = ch
 	err := ac.Subscribe(subject)
 	ac.ctxCancel,ac.cancel = context.WithCancel(context.Background())
-	if ac.proc!=nil {
-		ac.proc.OnStart()
-	}
 	return err
 }
 
@@ -123,7 +120,7 @@ func (ac *Actor) Unsubscribe(subject string) error {
  *主要职责是读消息，控制生命期，释放资源
 **/
 func (ac *Actor) Run() error {
-	ac.pushMessage(&Running{})
+	//ac.pushMessage(&Started{})
 	ctx := ac.ctxCancel
 	for {
 		select {

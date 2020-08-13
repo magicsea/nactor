@@ -11,6 +11,7 @@ import (
 type IBaseService interface {
 	Init(name string)
 	GetName() string
+
 	setActor(actor actor.IActor)
 }
 
@@ -21,36 +22,26 @@ type BaseService struct {
 	rounter    map[reflect.Type]reflect.Value
 }
 
-//NewBaseService
-func NewBaseService() BaseService {
-	s := BaseService{
-		rounter:make(map[reflect.Type]reflect.Value),
-	}
-	return s
-}
-
 func (s *BaseService) Init(name string) {
+	s.rounter = make(map[reflect.Type]reflect.Value)
 	s.name = name
-}
-func (s *BaseService) setActor(actor actor.IActor)()  {
-	s.actor = actor
-}
-func (s *BaseService) RunActor() {
-	s.actor.Run()
 }
 
 func (s *BaseService) GetName() string {
 	return s.name
 }
-
+func  (s *BaseService) setActor(actor actor.IActor) {
+	s.actor = actor
+}
 func  (s *BaseService) Stop()  {
 	s.actor.Close()
 }
 
 func (s *BaseService) Receive(context actor.Context) {
 	switch msg := context.Message().(type) {
-	case *actor.Running:
+	case *actor.Started:
 		nlog.Info("Started, initialize actor here:",s.name)
+
 	default:
 		nlog.Debug("service recv defalult:",s.name,"=>", msg)
 		err := s.CallMethod(context)
